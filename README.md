@@ -28,6 +28,40 @@ docker compose up -d --build
 docker compose logs door-admin | grep -A2 "Создан администратор"
 ```
 
+## OMV (OpenMediaVault)
+
+Нужны `omv-extras` и плагин `openmediavault-compose`. Docker storage лучше вынести
+на диск данных в `Services > Compose > Settings`.
+
+Проще запускать из SSH: compose собирает образ из исходников (`build: .`).
+
+```bash
+sudo mkdir -p /srv/dev-disk-by-uuid-XXXX/docker/skud
+cd /srv/dev-disk-by-uuid-XXXX/docker/skud
+# скопируйте сюда файлы репозитория, затем:
+cp .env.example .env
+chmod 600 .env
+nano .env   # пароль БД, SECRET_KEY, ADMIN_PASSWORD
+docker compose up -d --build
+docker compose logs -f door-admin
+```
+
+Откройте `http://IP_OMV:8081`. В настройках ESP укажите IP OMV и порт `8081`.
+
+Если нужен именно GUI Compose plugin: создайте проект `skud` и положите исходники
+в `/srv/.../compose/skud/` рядом с `skud.yml`, потому что `build: .` ищет Dockerfile
+в папке compose-файла. Значения из `.env.example` перенесите в env-поле плагина.
+Если кнопка Up не пересобирает образ, выполните в этой папке:
+
+```bash
+docker compose -f skud.yml --env-file skud.env up -d --build
+```
+
+Контейнеры, созданные из CLI, плагин не будет отображать — выберите один способ.
+
+Обновление: `git pull && docker compose up -d --build`.
+Бэкап БД: `docker compose exec -T db pg_dump -U skud skud > skud-backup.sql`.
+
 ## Сброс пароля администратора (CLI)
 
 ```bash
