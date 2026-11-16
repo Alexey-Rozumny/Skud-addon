@@ -1,30 +1,66 @@
-version: '3.8'
+name: skud-dev
 
 services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-skud}
+      POSTGRES_USER: ${POSTGRES_USER:-skud}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-skud}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-skud} -d ${POSTGRES_DB:-skud}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   door-admin:
     build: .
-    container_name: door_admin_panel
     restart: unless-stopped
-    # Переопределяем команду из Dockerfile, добавляя --reload
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "8081:8000"
     environment:
       - MODE=admin
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-skud}:${POSTGRES_PASSWORD:-skud}@db:5432/${POSTGRES_DB:-skud}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      - EVENTS_RETENTION_DAYS=${EVENTS_RETENTION_DAYS:-90}
+      - DOOR_OFFLINE_SECONDS=${DOOR_OFFLINE_SECONDS:-120}
+      - COMMAND_CONFIRM_SECONDS=${COMMAND_CONFIRM_SECONDS:-10}
+      - PHRASE_TTL_SECONDS=${PHRASE_TTL_SECONDS:-86400}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - PYTHONDONTWRITEBYTECODE=1
     volumes:
-      - ./data:/app/data
-      - .:/app  # Прокидываем весь код с компьютера в контейнер
+      - .:/app
 
   door-user:
     build: .
-    container_name: door_user_panel
     restart: unless-stopped
-    # Переопределяем команду из Dockerfile, добавляя --reload
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "8080:8000"
     environment:
       - MODE=user
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-skud}:${POSTGRES_PASSWORD:-skud}@db:5432/${POSTGRES_DB:-skud}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - EVENTS_RETENTION_DAYS=${EVENTS_RETENTION_DAYS:-90}
+      - DOOR_OFFLINE_SECONDS=${DOOR_OFFLINE_SECONDS:-120}
+      - COMMAND_CONFIRM_SECONDS=${COMMAND_CONFIRM_SECONDS:-10}
+      - PHRASE_TTL_SECONDS=${PHRASE_TTL_SECONDS:-86400}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - PYTHONDONTWRITEBYTECODE=1
     volumes:
-      - ./data:/app/data
-      - .:/app  # Прокидываем весь код с компьютера в контейнер
+      - .:/app
+
+volumes:
+  pgdata:
