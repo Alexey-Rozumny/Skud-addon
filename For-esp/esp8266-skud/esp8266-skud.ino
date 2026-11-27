@@ -347,7 +347,7 @@ String settingsPage(bool saved, bool authError) {
   String secretState = deviceSecret.isEmpty() ? "не задан" : "задан";
   String secretHint = deviceSecret.isEmpty()
                           ? "<div class=\"muted\">Секрет ещё не задан — введите его в поле «Новый секрет».</div>"
-                          : "<div class=\"mb-3\"><label class=\"form-label\">Текущий секрет (обязателен для сохранения)</label><input type=\"password\" class=\"form-control\" name=\"current_secret\" required></div>";
+                          : "<div class=\"mb-3\"><label class=\"form-label\">Текущий секрет (обязателен для сохранения)</label><input type=\"password\" class=\"form-control\" name=\"current_secret\" autocomplete=\"new-password\" required></div>";
 
   String notice;
   if (authError) {
@@ -375,7 +375,7 @@ String settingsPage(bool saved, bool authError) {
   page += "<div class=\"muted\">Секрет устройства: " + secretState + "</div>";
   page += secretHint;
   page += "<div class=\"mb-3\"><label class=\"form-label\">Новый секрет (необязательно)</label>";
-  page += "<input type=\"password\" class=\"form-control\" name=\"new_secret\" placeholder=\"оставьте пустым, чтобы не менять\"></div>";
+  page += "<input type=\"password\" class=\"form-control\" name=\"new_secret\" autocomplete=\"new-password\" placeholder=\"оставьте пустым, чтобы не менять\"></div>";
   if (!deviceSecret.isEmpty()) {
     page += "<div class=\"muted\">Чтобы изменить только сервер/IP, заполните поле «Текущий секрет», а «Новый секрет» оставьте пустым.</div>";
   }
@@ -623,6 +623,10 @@ void handleSettingsGet() {
 void handleSettingsPost() {
   String provided = server.arg("current_secret");
   provided.trim();
+  Serial.print("settings POST: provided_len=");
+  Serial.print(provided.length());
+  Serial.print(" stored_len=");
+  Serial.println(deviceSecret.length());
   if (!deviceSecret.isEmpty() && provided != deviceSecret) {
     Serial.println("settings rejected: wrong current secret");
     server.sendHeader("Cache-Control", "no-store");
@@ -696,7 +700,7 @@ String configPortalPage(const String &error) {
       <label>SSID</label>
       <input name="ssid" required maxlength="32" autocomplete="off">
       <label>Пароль</label>
-      <input name="pass" type="password" maxlength="64">
+      <input name="pass" type="password" maxlength="64" autocomplete="new-password">
       <button type="submit">Подключиться</button>
     </form>
   </div>
