@@ -706,6 +706,27 @@ if MODE == "admin":
         session.commit()
         return RedirectResponse("/", status_code=303)
 
+    @app.post("/rename_user/{user_id}")
+    def rename_user(
+        request: Request,
+        user_id: str,
+        name: str = Form(...),
+        csrf_token: str = Form(...),
+        session: Session = Depends(get_session),
+    ):
+        require_admin(request)
+        verify_csrf(request, csrf_token)
+
+        name = name.strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Имя не может быть пустым")
+
+        user = session.get(User, user_id)
+        if user is not None:
+            user.name = name[:128]
+            session.commit()
+        return RedirectResponse("/", status_code=303)
+
     @app.post("/delete_user/{user_id}")
     def delete_user(
         request: Request,

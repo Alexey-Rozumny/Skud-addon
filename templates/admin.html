@@ -73,11 +73,19 @@
                     <tbody>
                         {% for u in users %}
                         <tr>
-                            <td class="fw-bold">{{ u.name }}</td>
+                            <td>
+                                <form action="/rename_user/{{ u.id }}" method="POST" class="input-group input-group-sm" style="max-width: 260px;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <input type="text" class="form-control fw-bold" name="name" value="{{ u.name }}" maxlength="128" required aria-label="Имя сотрудника">
+                                    <button class="btn btn-outline-primary" type="submit" title="Сохранить имя">
+                                        <i class="bi bi-check2"></i>
+                                    </button>
+                                </form>
+                            </td>
                             <td>
                                 <div class="input-group input-group-sm" style="max-width: 350px;">
                                     <input type="text" class="form-control bg-body-tertiary" value="http://{{ host_ip }}:8080/u/{{ u.token }}" readonly id="link-{{ u.token }}">
-                                    <button class="btn btn-outline-primary" type="button" onclick="copyValue('link-{{ u.token }}')" title="Скопировать">
+                                    <button class="btn btn-outline-primary" type="button" onclick="copyValue('link-{{ u.token }}', this)" title="Скопировать">
                                         <i class="bi bi-clipboard"></i>
                                     </button>
                                 </div>
@@ -147,7 +155,7 @@
                             <td>
                                 <div class="input-group input-group-sm" style="max-width: 300px;">
                                     <input type="text" class="form-control bg-body-tertiary font-monospace" value="{{ d.secret }}" readonly id="secret-{{ d.id }}">
-                                    <button class="btn btn-outline-secondary" type="button" onclick="copyValue('secret-{{ d.id }}')" title="Скопировать секрет">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="copyValue('secret-{{ d.id }}', this)" title="Скопировать секрет">
                                         <i class="bi bi-clipboard"></i>
                                     </button>
                                 </div>
@@ -253,7 +261,7 @@
                                 {% elif l.result == "sent" %}
                                 <span class="badge bg-info text-dark">Отправлено</span>
                                 {% elif l.result == "no_confirm" %}
-                                <span class="badge bg-warning text-dark">Нет подтверждения</span>
+                                <span class="badge bg-warning text-dark">Дверной контакт отключён</span>
                                 {% else %}
                                 <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>{{ l.result }}</span>
                                 {% endif %}
@@ -279,13 +287,55 @@
 <script>
     const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
 
-    function copyValue(elementId) {
+    // execCommand работает и по http, где navigator.clipboard недоступен
+    function legacyCopy(text) {
+        var field = document.createElement('textarea');
+        field.value = text;
+        field.setAttribute('readonly', '');
+        field.style.position = 'fixed';
+        field.style.top = '-1000px';
+        field.style.opacity = '0';
+        document.body.appendChild(field);
+        field.select();
+        field.setSelectionRange(0, field.value.length);
+        var copied = false;
+        try {
+            copied = document.execCommand('copy');
+        } catch (e) {
+            copied = false;
+        }
+        document.body.removeChild(field);
+        return copied;
+    }
+
+    function showCopied(button, copied) {
+        if (!copied) {
+            alert('Не удалось скопировать. Выделите текст и скопируйте вручную.');
+            return;
+        }
+        if (!button || button.dataset.copying === '1') return;
+        var icon = button.querySelector('i');
+        if (!icon) return;
+        button.dataset.copying = '1';
+        var originalClass = icon.className;
+        icon.className = 'bi bi-check2';
+        setTimeout(function() {
+            icon.className = originalClass;
+            delete button.dataset.copying;
+        }, 1500);
+    }
+
+    function copyValue(elementId, button) {
         var el = document.getElementById(elementId);
-        el.select();
-        el.setSelectionRange(0, 99999);
-        navigator.clipboard.writeText(el.value).then(() => {
-            alert("Скопировано: " + el.value);
-        });
+        if (!el) return;
+        var value = el.value;
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(value)
+                .then(function() { showCopied(button, true); })
+                .catch(function() { showCopied(button, legacyCopy(value)); });
+        } else {
+            showCopied(button, legacyCopy(value));
+        }
     }
 
     function openDoorAdmin(doorId) {
